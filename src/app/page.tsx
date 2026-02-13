@@ -181,14 +181,17 @@ export default function Home() {
           />
         )}
 
-        {showAddLink && (
-          <AddLinkForm
-            course={courses.find(c => c.id === showAddLink)!}
-            onAddLink={handleAddLink}
-            onAddTopic={handleAddTopic}
-            onCancel={() => setShowAddLink(null)}
-          />
-        )}
+        {showAddLink && (() => {
+          const course = courses.find(c => c.id === showAddLink);
+          return course ? (
+            <AddLinkForm
+              course={course}
+              onAddLink={handleAddLink}
+              onAddTopic={handleAddTopic}
+              onCancel={() => setShowAddLink(null)}
+            />
+          ) : null;
+        })()}
       </div>
     </div>
   );
