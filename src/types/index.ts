@@ -5,10 +5,32 @@ export interface Link {
   description?: string;
 }
 
-export interface Subject {
+export interface SubjectDef {
+  id: string;       // codigo: PRO1, IC, FM...
+  name: string;     // nombre completo
+  ects: number;
+}
+
+export interface Course {
+  id: string;       // Q1, Q2, Q3...
+  label: string;    // "Q1 — Primer cuatrimestre"
+  subjects: SubjectDef[];
+}
+
+export interface Specialty {
   id: string;
-  name: string;
-  description?: string;
-  color?: string;
+  label: string;
+  obligatory: SubjectDef[];
+  complementary: SubjectDef[];
+}
+
+/** Lo que se guarda en localStorage por asignatura */
+export interface SubjectUserData {
   links: Link[];
+}
+
+/** Estado global guardado en localStorage */
+export interface UserState {
+  activeSubjects: string[];                  // ids de asignaturas activas
+  subjectData: Record<string, SubjectUserData>;  // links por asignatura
 }
