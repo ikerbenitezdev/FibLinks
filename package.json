@@ -16,12 +16,13 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/ikerbenitezdev/FibLinks/issues"
   },
   "homepage": "https://github.com/ikerbenitezdev/FibLinks#readme",
   "dependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^25.2.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
