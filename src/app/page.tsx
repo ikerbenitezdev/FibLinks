@@ -29,7 +29,7 @@ export default function Home() {
 
   const addSubject = (name: string, description?: string) => {
     const newSubject: Subject = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       name,
       description,
       links: [],
@@ -50,7 +50,7 @@ export default function Home() {
     description?: string
   ) => {
     const newLink: Link = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       title,
       url,
       description,
