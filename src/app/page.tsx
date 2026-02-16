@@ -149,7 +149,14 @@ export default function Home() {
             >
               <HiOutlineAdjustmentsHorizontal className="text-lg" />
             </button>
+            <button>
+              <a href="https://raco.fib.upc.edu/">Racó</a>
+            </button>
+            <button>
+              <a href="https://atenea.upc.edu/">Atenea</a>
+            </button>
           </div>
+          
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 sm:px-4 py-2 sm:py-2.5 flex-1 sm:flex-none sm:w-64">
