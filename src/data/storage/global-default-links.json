@@ -1,1 +1,14 @@
-{}
+{
+  "IC": [
+    {
+      "id": "global-b64d4626-10c1-4192-8a01-2f2e5c913662",
+      "title": "prueba",
+      "url": "https://fib-links.vercel.app/",
+      "description": "",
+      "createdBy": "thereki795@gmail.com",
+      "createdAt": "2026-02-27T09:28:09.357Z",
+      "approvedBy": "ikerbenitezsoria@gmail.com",
+      "approvedAt": "2026-02-27T11:00:18.337Z"
+    }
+  ]
+}

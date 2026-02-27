@@ -30,9 +30,11 @@
       "PRO2",
       "EC",
       "M1",
-      "M2"
+      "M2",
+      "IC",
+      "FM"
     ],
-    "updatedAt": "2026-02-27T09:38:59.537Z"
+    "updatedAt": "2026-02-27T11:22:05.785Z"
   },
   "thereki795@gmail.com": {
     "activeSubjects": [
@@ -41,6 +43,6 @@
       "FM",
       "F"
     ],
-    "updatedAt": "2026-02-27T09:28:17.710Z"
+    "updatedAt": "2026-02-27T11:17:47.546Z"
   }
 }

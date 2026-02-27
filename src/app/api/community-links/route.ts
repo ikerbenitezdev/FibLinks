@@ -5,7 +5,6 @@ import {
   addCommunityLink,
   deleteCommunityLink,
   getCommunityLinksBySubjects,
-  getGlobalDefaultLinksBySubjects,
   getPendingCommunityLinks,
   isModeratorUser,
   moderateCommunityLink,
@@ -45,8 +44,7 @@ export async function GET(request: NextRequest) {
   }
 
   const linksBySubject = await getCommunityLinksBySubjects(subjectIds, userId);
-  const globalDefaultLinksBySubject = await getGlobalDefaultLinksBySubjects(subjectIds);
-  return NextResponse.json({ linksBySubject, globalDefaultLinksBySubject });
+  return NextResponse.json({ linksBySubject });
 }
 
 export async function POST(request: NextRequest) {
@@ -108,7 +106,10 @@ export async function DELETE(request: NextRequest) {
   const result = await deleteCommunityLink({ subjectId, linkId, userId });
 
   if (!result.deleted && result.reason === "forbidden") {
-    return NextResponse.json({ error: "Solo puedes borrar tus propios enlaces" }, { status: 403 });
+    return NextResponse.json(
+      { error: "Solo puedes borrar tus enlaces pendientes; el moderador puede borrar cualquiera" },
+      { status: 403 }
+    );
   }
 
   if (!result.deleted && result.reason === "not_found") {

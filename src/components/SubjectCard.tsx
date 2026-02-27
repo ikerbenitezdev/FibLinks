@@ -18,6 +18,7 @@ interface SubjectCardProps {
   subject: SubjectDef;
   data: SubjectUserData;
   currentUserId: string;
+  canModerate: boolean;
   onHide: (id: string) => void;
   onAddLink: (subjectId: string, title: string, url: string, description?: string) => void;
   onDeleteLink: (subjectId: string, linkId: string) => void;
@@ -42,10 +43,18 @@ function normalizeUserId(value?: string) {
   return (value ?? "").trim().toLowerCase();
 }
 
+function normalizeUrl(rawUrl: string) {
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
 export default function SubjectCard({
   subject,
   data,
   currentUserId,
+  canModerate,
   onHide,
   onAddLink,
   onDeleteLink,
@@ -62,12 +71,19 @@ export default function SubjectCard({
 
   const handleAddLink = (e: React.FormEvent) => {
     e.preventDefault();
-    if (linkTitle && linkUrl) {
-      onAddLink(subject.id, linkTitle, linkUrl, linkDescription);
+    const normalizedUrl = normalizeUrl(linkUrl);
+    if (!linkTitle || !normalizedUrl) return;
+
+    try {
+      const parsed = new URL(normalizedUrl);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return;
+      onAddLink(subject.id, linkTitle.trim(), normalizedUrl, linkDescription.trim());
       setLinkTitle("");
       setLinkUrl("");
       setLinkDescription("");
       setShowAddLink(false);
+    } catch {
+      return;
     }
   };
 
@@ -170,8 +186,9 @@ export default function SubjectCard({
                       </p>
                     </div>
                     {link.source !== "default" &&
-                      (normalizeUserId(link.createdBy) === normalizedCurrentUser ||
-                        !normalizeUserId(link.createdBy)) && (
+                      (canModerate ||
+                        (normalizeUserId(link.createdBy) === normalizedCurrentUser &&
+                          link.moderationStatus === "pending")) && (
                       <button
                         onClick={() => onDeleteLink(subject.id, link.id)}
                         className="h-8 w-8 rounded-lg flex items-center justify-center text-stone-400 hover:text-red-500 hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100 transition-all flex-shrink-0"
@@ -219,11 +236,11 @@ export default function SubjectCard({
                       URL *
                     </label>
                     <input
-                      type="url"
+                      type="text"
                       value={linkUrl}
                       onChange={(e) => setLinkUrl(e.target.value)}
                       className="input-field text-sm"
-                      placeholder="https://..."
+                      placeholder="https://... o dominio.com"
                       required
                     />
                   </div>

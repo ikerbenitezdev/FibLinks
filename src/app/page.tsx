@@ -87,7 +87,6 @@ async function fetchCommunityLinks(subjectIds: string[]) {
   if (subjectIds.length === 0) {
     return {
       linksBySubject: {} as Record<string, Link[]>,
-      globalDefaultLinksBySubject: {} as Record<string, Link[]>,
     };
   }
 
@@ -96,7 +95,6 @@ async function fetchCommunityLinks(subjectIds: string[]) {
   if (!response.ok) {
     return {
       linksBySubject: {} as Record<string, Link[]>,
-      globalDefaultLinksBySubject: {} as Record<string, Link[]>,
     };
   }
 
@@ -112,20 +110,9 @@ async function fetchCommunityLinks(subjectIds: string[]) {
         moderationStatus?: "pending" | "approved";
       }>
     >;
-    globalDefaultLinksBySubject?: Record<
-      string,
-      Array<{
-        id: string;
-        title: string;
-        url: string;
-        description?: string;
-        createdBy?: string;
-      }>
-    >;
   };
 
   const linksBySubject = payload.linksBySubject ?? {};
-  const globalDefaultLinksBySubject = payload.globalDefaultLinksBySubject ?? {};
 
   return {
     linksBySubject: Object.fromEntries(
@@ -133,12 +120,6 @@ async function fetchCommunityLinks(subjectIds: string[]) {
       subjectId,
       links.map((link) => ({ ...link, source: "community" as const })),
     ])
-    ),
-    globalDefaultLinksBySubject: Object.fromEntries(
-      Object.entries(globalDefaultLinksBySubject).map(([subjectId, links]) => [
-        subjectId,
-        links.map((link) => ({ ...link, source: "default" as const })),
-      ])
     ),
   };
 }
@@ -191,7 +172,6 @@ export default function Home() {
   const { data: session, status } = useSession();
   const [state, setState] = useState<UserState>({ activeSubjects: [] });
   const [communityLinks, setCommunityLinks] = useState<Record<string, Link[]>>({});
-  const [globalDefaultLinks, setGlobalDefaultLinks] = useState<Record<string, Link[]>>({});
   const [pendingLinks, setPendingLinks] = useState<PendingLinkItem[]>([]);
   const [canModerate, setCanModerate] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -211,7 +191,6 @@ export default function Home() {
     if (!userId) {
       setState({ activeSubjects: [] });
       setCommunityLinks({});
-      setGlobalDefaultLinks({});
       setPendingLinks([]);
       setCanModerate(false);
       setHydratedUserId("");
@@ -256,9 +235,8 @@ export default function Home() {
   // Load community links for active subjects
   useEffect(() => {
     if (!loaded) return;
-    fetchCommunityLinks(state.activeSubjects).then(({ linksBySubject, globalDefaultLinksBySubject }) => {
+    fetchCommunityLinks(state.activeSubjects).then(({ linksBySubject }) => {
       setCommunityLinks(linksBySubject);
-      setGlobalDefaultLinks(globalDefaultLinksBySubject);
     });
   }, [state.activeSubjects, loaded]);
 
@@ -368,11 +346,10 @@ export default function Home() {
     );
 
     if (action === "approve") {
-      const { linksBySubject, globalDefaultLinksBySubject } = await fetchCommunityLinks(
+      const { linksBySubject } = await fetchCommunityLinks(
         state.activeSubjects
       );
       setCommunityLinks(linksBySubject);
-      setGlobalDefaultLinks(globalDefaultLinksBySubject);
     }
   };
 
@@ -386,7 +363,6 @@ export default function Home() {
     return (
       acc +
       getDefaultLinks(subject.id).length +
-      (globalDefaultLinks[subject.id]?.length ?? 0) +
       (communityLinks[subject.id]?.length ?? 0)
     );
   }, 0);
@@ -834,11 +810,11 @@ export default function Home() {
                     data={{
                       links: [
                         ...getDefaultLinks(subject!.id),
-                        ...(globalDefaultLinks[subject!.id] ?? []),
                         ...(communityLinks[subject!.id] ?? []),
                       ],
                     }}
                     currentUserId={userId}
+                    canModerate={canModerate}
                     onHide={hideSubject}
                     onAddLink={addLink}
                     onDeleteLink={deleteLink}

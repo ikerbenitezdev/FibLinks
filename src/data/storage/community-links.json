@@ -1,15 +1,17 @@
 {
   "EC": [],
-  "FM": [],
-  "IC": [
+  "FM": [
     {
-      "id": "b64d4626-10c1-4192-8a01-2f2e5c913662",
+      "id": "1d759d6f-8ce1-4998-a0a1-59255513b537",
       "title": "prueba",
-      "url": "https://fib-links.vercel.app/",
+      "url": "https://pro2.cs.upc.edu/lab/2",
       "description": "",
       "createdBy": "thereki795@gmail.com",
-      "createdAt": "2026-02-27T09:28:09.357Z",
-      "moderationStatus": "pending"
+      "createdAt": "2026-02-27T11:16:47.703Z",
+      "moderationStatus": "approved",
+      "moderatedBy": "ikerbenitezsoria@gmail.com",
+      "moderatedAt": "2026-02-27T11:17:23.882Z"
     }
-  ]
+  ],
+  "IC": []
 }
