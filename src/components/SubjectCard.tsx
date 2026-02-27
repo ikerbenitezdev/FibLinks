@@ -164,6 +164,8 @@ export default function SubjectCard({
                       <p className="text-[10px] text-stone-400 mt-0.5">
                         {link.source === "default"
                           ? "Por defecto"
+                          : link.moderationStatus === "pending"
+                          ? "Tu enlace · Pendiente de revisión"
                           : `Comunidad · ${link.createdBy ?? "anonimo"}`}
                       </p>
                     </div>

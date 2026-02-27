@@ -53,11 +53,21 @@ async function saveUserState(userId: string, state: UserState) {
 }
 
 async function fetchCommunityLinks(subjectIds: string[]) {
-  if (subjectIds.length === 0) return {} as Record<string, Link[]>;
+  if (subjectIds.length === 0) {
+    return {
+      linksBySubject: {} as Record<string, Link[]>,
+      globalDefaultLinksBySubject: {} as Record<string, Link[]>,
+    };
+  }
 
   const params = new URLSearchParams({ subjectIds: subjectIds.join(",") });
   const response = await fetch(`/api/community-links?${params.toString()}`);
-  if (!response.ok) return {} as Record<string, Link[]>;
+  if (!response.ok) {
+    return {
+      linksBySubject: {} as Record<string, Link[]>,
+      globalDefaultLinksBySubject: {} as Record<string, Link[]>,
+    };
+  }
 
   const payload = (await response.json()) as {
     linksBySubject?: Record<
@@ -71,15 +81,35 @@ async function fetchCommunityLinks(subjectIds: string[]) {
         moderationStatus?: "pending" | "approved";
       }>
     >;
+    globalDefaultLinksBySubject?: Record<
+      string,
+      Array<{
+        id: string;
+        title: string;
+        url: string;
+        description?: string;
+        createdBy?: string;
+      }>
+    >;
   };
 
   const linksBySubject = payload.linksBySubject ?? {};
-  return Object.fromEntries(
+  const globalDefaultLinksBySubject = payload.globalDefaultLinksBySubject ?? {};
+
+  return {
+    linksBySubject: Object.fromEntries(
     Object.entries(linksBySubject).map(([subjectId, links]) => [
       subjectId,
       links.map((link) => ({ ...link, source: "community" as const })),
     ])
-  );
+    ),
+    globalDefaultLinksBySubject: Object.fromEntries(
+      Object.entries(globalDefaultLinksBySubject).map(([subjectId, links]) => [
+        subjectId,
+        links.map((link) => ({ ...link, source: "default" as const })),
+      ])
+    ),
+  };
 }
 
 async function fetchPendingLinks(): Promise<{
@@ -130,6 +160,7 @@ export default function Home() {
   const { data: session, status } = useSession();
   const [state, setState] = useState<UserState>({ activeSubjects: [] });
   const [communityLinks, setCommunityLinks] = useState<Record<string, Link[]>>({});
+  const [globalDefaultLinks, setGlobalDefaultLinks] = useState<Record<string, Link[]>>({});
   const [pendingLinks, setPendingLinks] = useState<PendingLinkItem[]>([]);
   const [canModerate, setCanModerate] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -178,8 +209,9 @@ export default function Home() {
   // Load community links for active subjects
   useEffect(() => {
     if (!loaded) return;
-    fetchCommunityLinks(state.activeSubjects).then((linksBySubject) => {
+    fetchCommunityLinks(state.activeSubjects).then(({ linksBySubject, globalDefaultLinksBySubject }) => {
       setCommunityLinks(linksBySubject);
+      setGlobalDefaultLinks(globalDefaultLinksBySubject);
     });
   }, [state.activeSubjects, loaded]);
 
@@ -245,13 +277,12 @@ export default function Home() {
 
     const newLink = { ...payload.link, source: "community" as const };
 
-    if (newLink.moderationStatus === "approved") {
-      setCommunityLinks((prev) => ({
-        ...prev,
-        [subjectId]: [...(prev[subjectId] ?? []), newLink],
-      }));
-      return;
-    }
+    setCommunityLinks((prev) => ({
+      ...prev,
+      [subjectId]: [...(prev[subjectId] ?? []), newLink],
+    }));
+
+    if (newLink.moderationStatus === "approved") return;
 
     if (canModerate) {
       setPendingLinks((prev) => [{ subjectId, link: newLink }, ...prev]);
@@ -290,8 +321,11 @@ export default function Home() {
     );
 
     if (action === "approve") {
-      const linksBySubject = await fetchCommunityLinks(state.activeSubjects);
+      const { linksBySubject, globalDefaultLinksBySubject } = await fetchCommunityLinks(
+        state.activeSubjects
+      );
       setCommunityLinks(linksBySubject);
+      setGlobalDefaultLinks(globalDefaultLinksBySubject);
     }
   };
 
@@ -302,7 +336,12 @@ export default function Home() {
 
   const totalLinks = activeSubjects.reduce((acc, subject) => {
     if (!subject) return acc;
-    return acc + getDefaultLinks(subject.id).length + (communityLinks[subject.id]?.length ?? 0);
+    return (
+      acc +
+      getDefaultLinks(subject.id).length +
+      (globalDefaultLinks[subject.id]?.length ?? 0) +
+      (communityLinks[subject.id]?.length ?? 0)
+    );
   }, 0);
 
   const filtered = activeSubjects.filter(
@@ -694,6 +733,7 @@ export default function Home() {
                     data={{
                       links: [
                         ...getDefaultLinks(subject!.id),
+                        ...(globalDefaultLinks[subject!.id] ?? []),
                         ...(communityLinks[subject!.id] ?? []),
                       ],
                     }}

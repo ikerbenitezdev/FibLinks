@@ -1,3 +1,14 @@
 {
-  "EC": []
+  "EC": [],
+  "FM": [
+    {
+      "id": "de44664d-6ab3-4c01-8a7c-9d664164860f",
+      "title": "prueba",
+      "url": "https://about.gitlab.com/",
+      "description": "",
+      "createdBy": "viajaeasyes@gmail.com",
+      "createdAt": "2026-02-27T00:57:47.076Z",
+      "moderationStatus": "pending"
+    }
+  ]
 }

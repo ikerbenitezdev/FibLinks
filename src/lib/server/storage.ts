@@ -4,6 +4,7 @@ import path from "node:path";
 const storageDir = path.join(process.cwd(), "src", "data", "storage");
 const userStatePath = path.join(storageDir, "user-states.json");
 const communityLinksPath = path.join(storageDir, "community-links.json");
+const globalDefaultLinksPath = path.join(storageDir, "global-default-links.json");
 
 export interface StoredUserState {
   activeSubjects: string[];
@@ -22,8 +23,20 @@ export interface StoredCommunityLink {
   moderatedAt?: string;
 }
 
+export interface StoredGlobalDefaultLink {
+  id: string;
+  title: string;
+  url: string;
+  description?: string;
+  createdBy: string;
+  createdAt: string;
+  approvedBy: string;
+  approvedAt: string;
+}
+
 type UserStateStore = Record<string, StoredUserState>;
 type CommunityLinksStore = Record<string, StoredCommunityLink[]>;
+type GlobalDefaultLinksStore = Record<string, StoredGlobalDefaultLink[]>;
 
 const MODERATOR_USERS = (process.env.MODERATOR_USERS ?? process.env.NEXT_PUBLIC_MODERATOR_USERS ?? "admin")
   .split(",")
@@ -83,13 +96,28 @@ export async function saveUserState(userId: string, activeSubjects: string[]) {
   await writeJsonFile(userStatePath, store);
 }
 
-export async function getCommunityLinksBySubjects(subjectIds: string[]) {
+export async function getCommunityLinksBySubjects(subjectIds: string[], userId: string) {
   const store = await readJsonFile<CommunityLinksStore>(communityLinksPath, {});
   const result: CommunityLinksStore = {};
+  const normalizedUser = normalizeUserId(userId);
 
   for (const subjectId of subjectIds) {
     const links = store[subjectId] ?? [];
-    result[subjectId] = links.filter((link) => getModerationStatus(link) === "approved");
+    result[subjectId] = links.filter(
+      (link) =>
+        getModerationStatus(link) === "pending" && normalizeUserId(link.createdBy) === normalizedUser
+    );
+  }
+
+  return result;
+}
+
+export async function getGlobalDefaultLinksBySubjects(subjectIds: string[]) {
+  const store = await readJsonFile<GlobalDefaultLinksStore>(globalDefaultLinksPath, {});
+  const result: GlobalDefaultLinksStore = {};
+
+  for (const subjectId of subjectIds) {
+    result[subjectId] = store[subjectId] ?? [];
   }
 
   return result;
@@ -165,6 +193,7 @@ export async function moderateCommunityLink(input: {
   action: "approve" | "reject";
 }) {
   const store = await readJsonFile<CommunityLinksStore>(communityLinksPath, {});
+  const globalDefaults = await readJsonFile<GlobalDefaultLinksStore>(globalDefaultLinksPath, {});
   const subjectLinks = store[input.subjectId] ?? [];
 
   const targetIndex = subjectLinks.findIndex((link) => link.id === input.linkId);
@@ -177,14 +206,24 @@ export async function moderateCommunityLink(input: {
   }
 
   const target = subjectLinks[targetIndex];
-  subjectLinks[targetIndex] = {
-    ...target,
-    moderationStatus: "approved",
-    moderatedBy: normalizeUserId(input.moderatorUserId),
-    moderatedAt: new Date().toISOString(),
+  const approvedAt = new Date().toISOString();
+  const approvedBy = normalizeUserId(input.moderatorUserId);
+
+  const newGlobalDefault: StoredGlobalDefaultLink = {
+    id: `global-${target.id}`,
+    title: target.title,
+    url: target.url,
+    description: target.description,
+    createdBy: target.createdBy,
+    createdAt: target.createdAt,
+    approvedBy,
+    approvedAt,
   };
 
-  store[input.subjectId] = subjectLinks;
+  globalDefaults[input.subjectId] = [...(globalDefaults[input.subjectId] ?? []), newGlobalDefault];
+  store[input.subjectId] = subjectLinks.filter((link) => link.id !== input.linkId);
+
+  await writeJsonFile(globalDefaultLinksPath, globalDefaults);
   await writeJsonFile(communityLinksPath, store);
   return { updated: true as const };
 }

@@ -5,6 +5,7 @@ import {
   addCommunityLink,
   deleteCommunityLink,
   getCommunityLinksBySubjects,
+  getGlobalDefaultLinksBySubjects,
   getPendingCommunityLinks,
   isModeratorUser,
   moderateCommunityLink,
@@ -36,8 +37,16 @@ export async function GET(request: NextRequest) {
     .map((id) => id.trim())
     .filter(Boolean);
 
-  const linksBySubject = await getCommunityLinksBySubjects(subjectIds);
-  return NextResponse.json({ linksBySubject });
+  const session = await getServerSession(authOptions);
+  const userId = normalizeUserId(session?.user?.email ?? "");
+
+  if (!userId) {
+    return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+  }
+
+  const linksBySubject = await getCommunityLinksBySubjects(subjectIds, userId);
+  const globalDefaultLinksBySubject = await getGlobalDefaultLinksBySubjects(subjectIds);
+  return NextResponse.json({ linksBySubject, globalDefaultLinksBySubject });
 }
 
 export async function POST(request: NextRequest) {
