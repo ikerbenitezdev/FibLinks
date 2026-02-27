@@ -6,6 +6,8 @@ import {
   deleteCommunityLink,
   getCommunityLinksBySubjects,
   getPendingCommunityLinks,
+  getRemovedDefaultLinkIdsBySubjects,
+  hideDefaultLink,
   isModeratorUser,
   moderateCommunityLink,
   normalizeUserId,
@@ -44,7 +46,8 @@ export async function GET(request: NextRequest) {
   }
 
   const linksBySubject = await getCommunityLinksBySubjects(subjectIds, userId);
-  return NextResponse.json({ linksBySubject });
+  const removedDefaultLinkIdsBySubject = await getRemovedDefaultLinkIdsBySubjects(subjectIds);
+  return NextResponse.json({ linksBySubject, removedDefaultLinkIdsBySubject });
 }
 
 export async function POST(request: NextRequest) {
@@ -93,14 +96,25 @@ export async function DELETE(request: NextRequest) {
   const body = (await request.json()) as {
     subjectId?: string;
     linkId?: string;
+    source?: "community" | "default";
   };
 
   const subjectId = body.subjectId?.trim();
   const linkId = body.linkId?.trim();
+  const source = body.source ?? "community";
   const userId = sessionUserId;
 
   if (!subjectId || !linkId || !userId) {
     return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 });
+  }
+
+  if (source === "default") {
+    if (!isModeratorUser(userId)) {
+      return NextResponse.json({ error: "Solo el moderador puede borrar enlaces por defecto" }, { status: 403 });
+    }
+
+    await hideDefaultLink({ subjectId, linkId });
+    return NextResponse.json({ ok: true });
   }
 
   const result = await deleteCommunityLink({ subjectId, linkId, userId });

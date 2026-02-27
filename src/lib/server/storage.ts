@@ -4,6 +4,7 @@ import path from "node:path";
 const storageDir = path.join(process.cwd(), "src", "data", "storage");
 const userStatePath = path.join(storageDir, "user-states.json");
 const communityLinksPath = path.join(storageDir, "community-links.json");
+const defaultLinkOverridesPath = path.join(storageDir, "default-link-overrides.json");
 
 export interface StoredUserState {
   activeSubjects: string[];
@@ -24,6 +25,7 @@ export interface StoredCommunityLink {
 
 type UserStateStore = Record<string, StoredUserState>;
 type CommunityLinksStore = Record<string, StoredCommunityLink[]>;
+type DefaultLinkOverridesStore = Record<string, string[]>;
 
 const MODERATOR_USERS = (process.env.MODERATOR_USERS ?? process.env.NEXT_PUBLIC_MODERATOR_USERS ?? "admin")
   .split(",")
@@ -111,6 +113,17 @@ export async function getPendingCommunityLinks() {
         result.push({ subjectId, link });
       }
     }
+  }
+
+  return result;
+}
+
+export async function getRemovedDefaultLinkIdsBySubjects(subjectIds: string[]) {
+  const store = await readJsonFile<DefaultLinkOverridesStore>(defaultLinkOverridesPath, {});
+  const result: DefaultLinkOverridesStore = {};
+
+  for (const subjectId of subjectIds) {
+    result[subjectId] = store[subjectId] ?? [];
   }
 
   return result;
@@ -205,5 +218,17 @@ export async function moderateCommunityLink(input: {
   });
 
   await writeJsonFile(communityLinksPath, store);
+  return { updated: true as const };
+}
+
+export async function hideDefaultLink(input: {
+  subjectId: string;
+  linkId: string;
+}) {
+  const store = await readJsonFile<DefaultLinkOverridesStore>(defaultLinkOverridesPath, {});
+  const current = new Set(store[input.subjectId] ?? []);
+  current.add(input.linkId);
+  store[input.subjectId] = Array.from(current);
+  await writeJsonFile(defaultLinkOverridesPath, store);
   return { updated: true as const };
 }

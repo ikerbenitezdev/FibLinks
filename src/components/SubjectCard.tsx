@@ -21,7 +21,7 @@ interface SubjectCardProps {
   canModerate: boolean;
   onHide: (id: string) => void;
   onAddLink: (subjectId: string, title: string, url: string, description?: string) => void;
-  onDeleteLink: (subjectId: string, linkId: string) => void;
+  onDeleteLink: (subjectId: string, linkId: string, source: "community" | "default") => void;
 }
 
 const COLORS = [
@@ -190,9 +190,18 @@ export default function SubjectCard({
                         (normalizeUserId(link.createdBy) === normalizedCurrentUser &&
                           link.moderationStatus === "pending")) && (
                       <button
-                        onClick={() => onDeleteLink(subject.id, link.id)}
+                        onClick={() => onDeleteLink(subject.id, link.id, "community")}
                         className="h-8 w-8 rounded-lg flex items-center justify-center text-stone-400 hover:text-red-500 hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100 transition-all flex-shrink-0"
                         title="Eliminar enlace"
+                      >
+                        <HiOutlineTrash className="text-sm" />
+                      </button>
+                    )}
+                    {link.source === "default" && canModerate && (
+                      <button
+                        onClick={() => onDeleteLink(subject.id, link.id, "default")}
+                        className="h-8 w-8 rounded-lg flex items-center justify-center text-stone-400 hover:text-red-500 hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100 transition-all flex-shrink-0"
+                        title="Eliminar enlace por defecto"
                       >
                         <HiOutlineTrash className="text-sm" />
                       </button>

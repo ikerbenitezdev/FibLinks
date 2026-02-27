@@ -87,6 +87,7 @@ async function fetchCommunityLinks(subjectIds: string[]) {
   if (subjectIds.length === 0) {
     return {
       linksBySubject: {} as Record<string, Link[]>,
+      removedDefaultLinkIdsBySubject: {} as Record<string, string[]>,
     };
   }
 
@@ -95,6 +96,7 @@ async function fetchCommunityLinks(subjectIds: string[]) {
   if (!response.ok) {
     return {
       linksBySubject: {} as Record<string, Link[]>,
+      removedDefaultLinkIdsBySubject: {} as Record<string, string[]>,
     };
   }
 
@@ -110,9 +112,11 @@ async function fetchCommunityLinks(subjectIds: string[]) {
         moderationStatus?: "pending" | "approved";
       }>
     >;
+    removedDefaultLinkIdsBySubject?: Record<string, string[]>;
   };
 
   const linksBySubject = payload.linksBySubject ?? {};
+  const removedDefaultLinkIdsBySubject = payload.removedDefaultLinkIdsBySubject ?? {};
 
   return {
     linksBySubject: Object.fromEntries(
@@ -121,6 +125,7 @@ async function fetchCommunityLinks(subjectIds: string[]) {
       links.map((link) => ({ ...link, source: "community" as const })),
     ])
     ),
+    removedDefaultLinkIdsBySubject,
   };
 }
 
@@ -172,6 +177,7 @@ export default function Home() {
   const { data: session, status } = useSession();
   const [state, setState] = useState<UserState>({ activeSubjects: [] });
   const [communityLinks, setCommunityLinks] = useState<Record<string, Link[]>>({});
+  const [removedDefaultLinkIds, setRemovedDefaultLinkIds] = useState<Record<string, string[]>>({});
   const [pendingLinks, setPendingLinks] = useState<PendingLinkItem[]>([]);
   const [canModerate, setCanModerate] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -191,6 +197,7 @@ export default function Home() {
     if (!userId) {
       setState({ activeSubjects: [] });
       setCommunityLinks({});
+      setRemovedDefaultLinkIds({});
       setPendingLinks([]);
       setCanModerate(false);
       setHydratedUserId("");
@@ -235,8 +242,9 @@ export default function Home() {
   // Load community links for active subjects
   useEffect(() => {
     if (!loaded) return;
-    fetchCommunityLinks(state.activeSubjects).then(({ linksBySubject }) => {
+    fetchCommunityLinks(state.activeSubjects).then(({ linksBySubject, removedDefaultLinkIdsBySubject }) => {
       setCommunityLinks(linksBySubject);
+      setRemovedDefaultLinkIds(removedDefaultLinkIdsBySubject);
     });
   }, [state.activeSubjects, loaded]);
 
@@ -314,16 +322,28 @@ export default function Home() {
     }
   };
 
-  const deleteLink = async (subjectId: string, linkId: string) => {
+  const deleteLink = async (subjectId: string, linkId: string, source: "community" | "default") => {
     if (!userId) return;
 
     const response = await fetch("/api/community-links", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subjectId, linkId }),
+      body: JSON.stringify({ subjectId, linkId, source }),
     });
 
     if (!response.ok) return;
+
+    if (source === "default") {
+      setRemovedDefaultLinkIds((prev) => {
+        const current = new Set(prev[subjectId] ?? []);
+        current.add(linkId);
+        return {
+          ...prev,
+          [subjectId]: Array.from(current),
+        };
+      });
+      return;
+    }
 
     setCommunityLinks((prev) => ({
       ...prev,
@@ -346,10 +366,11 @@ export default function Home() {
     );
 
     if (action === "approve") {
-      const { linksBySubject } = await fetchCommunityLinks(
+      const { linksBySubject, removedDefaultLinkIdsBySubject } = await fetchCommunityLinks(
         state.activeSubjects
       );
       setCommunityLinks(linksBySubject);
+      setRemovedDefaultLinkIds(removedDefaultLinkIdsBySubject);
     }
   };
 
@@ -360,9 +381,10 @@ export default function Home() {
 
   const totalLinks = activeSubjects.reduce((acc, subject) => {
     if (!subject) return acc;
+    const removedDefaultsForSubject = new Set(removedDefaultLinkIds[subject.id] ?? []);
     return (
       acc +
-      getDefaultLinks(subject.id).length +
+      getDefaultLinks(subject.id).filter((link) => !removedDefaultsForSubject.has(link.id)).length +
       (communityLinks[subject.id]?.length ?? 0)
     );
   }, 0);
@@ -805,11 +827,16 @@ export default function Home() {
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.2 }}
                 >
+                  {(() => {
+                    const removedDefaultsForSubject = new Set(removedDefaultLinkIds[subject!.id] ?? []);
+                    return (
                   <SubjectCard
                     subject={subject!}
                     data={{
                       links: [
-                        ...getDefaultLinks(subject!.id),
+                        ...getDefaultLinks(subject!.id).filter(
+                          (link) => !removedDefaultsForSubject.has(link.id)
+                        ),
                         ...(communityLinks[subject!.id] ?? []),
                       ],
                     }}
@@ -819,6 +846,8 @@ export default function Home() {
                     onAddLink={addLink}
                     onDeleteLink={deleteLink}
                   />
+                    );
+                  })()}
                 </motion.div>
               ))}
             </AnimatePresence>
