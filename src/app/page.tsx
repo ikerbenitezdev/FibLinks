@@ -92,7 +92,9 @@ async function fetchCommunityLinks(subjectIds: string[]) {
   }
 
   const params = new URLSearchParams({ subjectIds: subjectIds.join(",") });
-  const response = await fetch(`/api/community-links?${params.toString()}`);
+  const response = await fetch(`/api/community-links?${params.toString()}`, {
+    cache: "no-store",
+  });
   if (!response.ok) {
     return {
       linksBySubject: {} as Record<string, Link[]>,
@@ -134,7 +136,9 @@ async function fetchPendingLinks(): Promise<{
   links: PendingLinkItem[];
 }> {
   const params = new URLSearchParams({ status: "pending" });
-  const response = await fetch(`/api/community-links?${params.toString()}`);
+  const response = await fetch(`/api/community-links?${params.toString()}`, {
+    cache: "no-store",
+  });
 
   if (response.status === 403) {
     return { allowed: false, links: [] };
@@ -349,6 +353,12 @@ export default function Home() {
       ...prev,
       [subjectId]: (prev[subjectId] ?? []).filter((link) => link.id !== linkId),
     }));
+
+    if (canModerate) {
+      const { allowed, links } = await fetchPendingLinks();
+      setCanModerate(allowed);
+      setPendingLinks(links);
+    }
   };
 
   const moderateLink = async (
@@ -364,6 +374,10 @@ export default function Home() {
     setPendingLinks((prev) =>
       prev.filter((item) => !(item.subjectId === subjectId && item.link.id === linkId))
     );
+
+    const { allowed, links } = await fetchPendingLinks();
+    setCanModerate(allowed);
+    setPendingLinks(links);
 
     if (action === "approve") {
       const { linksBySubject, removedDefaultLinkIdsBySubject } = await fetchCommunityLinks(

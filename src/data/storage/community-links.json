@@ -1,17 +1,41 @@
 {
-  "EC": [],
-  "FM": [
+  "EC": [
     {
-      "id": "1d759d6f-8ce1-4998-a0a1-59255513b537",
-      "title": "prueba",
-      "url": "https://pro2.cs.upc.edu/lab/2",
+      "id": "0eed65c9-e7c5-43c9-8422-82d5ef95de5f",
+      "title": "Calendrio LAB",
+      "url": "https://docencia.ac.upc.edu/FIB/grau/EC/calendari.html",
       "description": "",
       "createdBy": "thereki795@gmail.com",
-      "createdAt": "2026-02-27T11:16:47.703Z",
+      "createdAt": "2026-02-27T11:43:15.871Z",
       "moderationStatus": "approved",
       "moderatedBy": "ikerbenitezsoria@gmail.com",
-      "moderatedAt": "2026-02-27T11:17:23.882Z"
+      "moderatedAt": "2026-02-27T11:44:08.939Z"
     }
   ],
-  "IC": []
+  "FM": [],
+  "IC": [],
+  "PRO2": [
+    {
+      "id": "429b94d2-8251-46c5-bf56-c9a868d9db21",
+      "title": "Web PRO2",
+      "url": "https://pro2.cs.upc.edu/",
+      "description": "",
+      "createdBy": "ikerbenitezsoria@gmail.com",
+      "createdAt": "2026-02-27T11:35:07.310Z",
+      "moderationStatus": "approved",
+      "moderatedBy": "ikerbenitezsoria@gmail.com",
+      "moderatedAt": "2026-02-27T11:35:11.392Z"
+    },
+    {
+      "id": "10216882-ce9e-48af-89de-2936dfebf70f",
+      "title": "Web PRO2.0",
+      "url": "https://pro2.cs.upc.edu/",
+      "description": "Web con mas contenidos",
+      "createdBy": "ikerbenitezsoria@gmail.com",
+      "createdAt": "2026-02-27T11:41:37.387Z",
+      "moderationStatus": "approved",
+      "moderatedBy": "ikerbenitezsoria@gmail.com",
+      "moderatedAt": "2026-02-27T11:41:41.567Z"
+    }
+  ]
 }

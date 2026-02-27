@@ -182,7 +182,7 @@ export default function SubjectCard({
                           ? "Por defecto"
                           : link.moderationStatus === "pending"
                           ? "Tu enlace · Pendiente de revisión"
-                          : `Comunidad · ${link.createdBy ?? "anonimo"}`}
+                          : "Comunidad"}
                       </p>
                     </div>
                     {link.source !== "default" &&
