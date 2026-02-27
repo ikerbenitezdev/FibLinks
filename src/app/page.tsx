@@ -490,10 +490,10 @@ export default function Home() {
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-stone-900 flex items-center justify-center">
-                  <span className="text-white text-base sm:text-lg font-bold">F</span>
+                  <img src="/fiblinks-logo.svg" alt="FibLinks" className="h-5 w-5" />
                 </div>
                 <span className="text-lg sm:text-xl font-semibold text-stone-900 tracking-tight">
-                  <strong className="font-bold text-red-600">Fib</strong>Links
+                  FibLinks
                 </span>
               </div>
               <button
