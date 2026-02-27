@@ -493,7 +493,7 @@ export default function Home() {
                   <span className="text-white text-base sm:text-lg font-bold">F</span>
                 </div>
                 <span className="text-lg sm:text-xl font-semibold text-stone-900 tracking-tight">
-                  FibLinks
+                  <strong className="font-bold text-red-600">Fib</strong>Links
                 </span>
               </div>
               <button
