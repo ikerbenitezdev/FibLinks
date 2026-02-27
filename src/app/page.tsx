@@ -507,7 +507,7 @@ export default function Home() {
                 <span className="text-xs font-medium text-stone-700">Atenea</span>
               </a>
               <a
-                href="https://whola.app/"
+                href="https://wuolah.com/upc-facultad-informatica-barcelona-fib/grado-ingenieria-informatica"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="h-9 min-w-[92px] px-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap"
@@ -525,7 +525,7 @@ export default function Home() {
                 <span className="text-xs font-medium text-stone-700">Jutge</span>
               </a>
               <a
-                href="https://gitlab.com/"
+                href="https://gitlab.com/Toomoch/fiberhub.cat"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="h-9 min-w-[108px] px-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap"
@@ -562,7 +562,7 @@ export default function Home() {
                 <span className="text-sm font-medium text-stone-700">Atenea</span>
               </a>
               <a
-                href="https://whola.app/"
+                href="https://wuolah.com/upc-facultad-informatica-barcelona-fib/grado-ingenieria-informatica"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="h-10 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center gap-2 shrink-0 whitespace-nowrap"
@@ -580,7 +580,7 @@ export default function Home() {
                 <span className="text-sm font-medium text-stone-700">Jutge</span>
               </a>
               <a
-                href="https://gitlab.com/"
+                href="https://gitlab.com/Toomoch/fiberhub.cat"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="h-10 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center gap-2 shrink-0 whitespace-nowrap"
