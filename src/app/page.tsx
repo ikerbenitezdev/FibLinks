@@ -354,22 +354,77 @@ export default function Home() {
 
   if (!userId) {
     return (
-      <main className="min-h-screen">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-10 py-10">
-          <div className="card p-8 sm:p-10 text-center">
-            <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight">
-              Inicia sesión con Google
-            </h1>
-            <p className="text-stone-500 mt-2 text-sm sm:text-base">
-              Necesitas iniciar sesión para guardar tus asignaturas y moderar enlaces.
-            </p>
-            <button
-              onClick={() => signIn("google")}
-              className="btn-primary mt-6"
-            >
-              Entrar con Google
-            </button>
-          </div>
+      <main className="min-h-screen bg-gradient-to-br from-sky-300 via-blue-200 to-cyan-100 relative overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8 }}
+          className="pointer-events-none absolute -top-16 -left-12 h-56 w-56 rounded-full bg-violet-200/30 blur-3xl"
+        />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.9, delay: 0.1 }}
+          className="pointer-events-none absolute top-24 right-0 h-72 w-72 rounded-full bg-amber-100/40 blur-3xl"
+        />
+
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-10 py-10 sm:py-14 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+            className="card p-6 sm:p-10"
+          >
+            <div className="flex flex-col lg:flex-row lg:items-center gap-8">
+              <motion.div
+                initial={{ opacity: 0, x: -16 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.15 }}
+                className="flex-1"
+              >
+                <p className="text-xs sm:text-sm font-medium text-stone-400 mb-2">FIB — UPC</p>
+                <h1 className="text-2xl sm:text-4xl font-bold text-stone-900 tracking-tight leading-tight">
+                  Inicia sesión para usar FibLinks
+                </h1>
+                <p className="text-stone-500 mt-3 text-sm sm:text-base max-w-xl">
+                  Guarda tus asignaturas en tu cuenta, añade enlaces privados y envía recursos
+                  para revisión antes de publicarlos para todos.
+                </p>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, delay: 0.25 }}
+                  className="mt-6 flex flex-wrap gap-2"
+                >
+                  <span className="badge">Sincronizado entre dispositivos</span>
+                  <span className="badge">Enlaces privados por usuario</span>
+                  <span className="badge">Moderación de contenido</span>
+                </motion.div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, x: 16 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.2 }}
+                className="w-full lg:w-auto lg:min-w-[260px]"
+              >
+                <div className="rounded-2xl border border-stone-200 bg-gradient-to-br from-white to-stone-50 p-5 sm:p-6 shadow-sm">
+                  <p className="text-sm text-stone-600 mb-4">
+                    Accede con tu cuenta de Google para empezar.
+                  </p>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => signIn("google")}
+                    className="btn-primary w-full"
+                  >
+                    Entrar con Google
+                  </motion.button>
+                </div>
+              </motion.div>
+            </div>
+          </motion.div>
         </div>
       </main>
     );
@@ -382,10 +437,10 @@ export default function Home() {
         <motion.nav
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 sm:mb-10"
+          className="flex flex-col gap-3 mb-8 sm:mb-10"
         >
-          <div className="w-full sm:w-auto flex flex-col gap-2.5">
-            <div className="flex items-center justify-between sm:justify-start gap-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-stone-900 flex items-center justify-center">
                   <span className="text-white text-base sm:text-lg font-bold">F</span>
@@ -404,67 +459,91 @@ export default function Home() {
               </button>
             </div>
 
-            <div className="flex sm:hidden items-center gap-2 overflow-x-auto pb-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="hidden lg:flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2.5 max-w-xs">
+                <HiOutlineUser className="text-stone-400 text-lg flex-shrink-0" />
+                <span className="text-sm text-stone-700 truncate">{session?.user?.email}</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 sm:px-4 py-2 sm:py-2.5 flex-1 sm:flex-none sm:w-64">
+                <HiOutlineMagnifyingGlass className="text-stone-400 text-lg flex-shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Buscar asignatura..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="flex-1 bg-transparent text-sm text-stone-700 placeholder:text-stone-400 outline-none min-w-0"
+                />
+              </div>
+              <button
+                onClick={() => signOut()}
+                className="btn-ghost text-sm"
+              >
+                Salir
+              </button>
+            </div>
+          </div>
+
+          <div className="flex sm:hidden items-center gap-2 overflow-x-auto pb-1 pr-1">
               <a
                 href="https://raco.fib.upc.edu/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="h-9 min-w-[92px] px-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center justify-center gap-1.5"
+                className="h-9 min-w-[92px] px-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap"
               >
-                <img src="/logos/raco.png" alt="Racó" className="h-4.5 w-6.5" />
+                <img src="/logos/raco.png" alt="Racó" className="h-4 w-6" />
                 <span className="text-xs font-medium text-stone-700">Racó</span>
               </a>
               <a
                 href="https://atenea.upc.edu/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="h-9 min-w-[92px] px-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center justify-center gap-1.5"
+                className="h-9 min-w-[92px] px-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap"
               >
-                <img src="/logos/atenea.png" alt="Atenea" className="h-4.5 w-4.5" />
+                <img src="/logos/atenea.png" alt="Atenea" className="h-4 w-4" />
                 <span className="text-xs font-medium text-stone-700">Atenea</span>
               </a>
               <a
                 href="https://whola.app/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="h-9 min-w-[92px] px-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center justify-center gap-1.5"
+                className="h-9 min-w-[92px] px-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap"
               >
-                <img src="/logos/whola.png" alt="Whola" className="h-4.5 w-4.5" />
+                <img src="/logos/whola.png" alt="Whola" className="h-4 w-4" />
                 <span className="text-xs font-medium text-stone-700">Whola</span>
               </a>
               <a
                 href="https://jutge.org/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="h-9 min-w-[92px] px-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center justify-center gap-1.5"
+                className="h-9 min-w-[92px] px-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap"
               >
-                <img src="/logos/jutge.png" alt="Jutge" className="h-4.5 w-4.5" />
+                <img src="/logos/jutge.png" alt="Jutge" className="h-4 w-4" />
                 <span className="text-xs font-medium text-stone-700">Jutge</span>
               </a>
               <a
                 href="https://gitlab.com/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="h-9 min-w-[108px] px-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center justify-center gap-1.5"
+                className="h-9 min-w-[108px] px-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap"
               >
                 <FaGitlab className="text-sm text-orange-600" />
                 <span className="text-xs font-medium text-stone-700">Soluciones</span>
               </a>
               <NextLink
                 href="/utilidades"
-                className="h-9 min-w-[108px] px-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center justify-center gap-1.5"
+                className="h-9 min-w-[108px] px-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap"
               >
                 <HiOutlineWrenchScrewdriver className="text-sm text-stone-600" />
                 <span className="text-xs font-medium text-stone-700">Utilidades</span>
               </NextLink>
             </div>
 
-            <div className="hidden sm:flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2">
               <a
                 href="https://raco.fib.upc.edu/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="h-10 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center gap-2"
+                className="h-10 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center gap-2 shrink-0 whitespace-nowrap"
               >
                 <img src="/logos/raco.png" alt="Racó" className="h-5 w-8" />
                 <span className="text-sm font-medium text-stone-700">Racó</span>
@@ -473,7 +552,7 @@ export default function Home() {
                 href="https://atenea.upc.edu/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="h-10 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center gap-2"
+                className="h-10 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center gap-2 shrink-0 whitespace-nowrap"
               >
                 <img src="/logos/atenea.png" alt="Atenea" className="h-5 w-5" />
                 <span className="text-sm font-medium text-stone-700">Atenea</span>
@@ -482,7 +561,7 @@ export default function Home() {
                 href="https://whola.app/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="h-10 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center gap-2"
+                className="h-10 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center gap-2 shrink-0 whitespace-nowrap"
               >
                 <img src="/logos/whola.png" alt="Whola" className="h-5 w-5" />
                 <span className="text-sm font-medium text-stone-700">Whola</span>
@@ -491,7 +570,7 @@ export default function Home() {
                 href="https://jutge.org/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="h-10 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center gap-2"
+                className="h-10 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center gap-2 shrink-0 whitespace-nowrap"
               >
                 <img src="/logos/jutge.png" alt="Jutge" className="h-5 w-5" />
                 <span className="text-sm font-medium text-stone-700">Jutge</span>
@@ -500,44 +579,19 @@ export default function Home() {
                 href="https://gitlab.com/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="h-10 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center gap-2"
+                className="h-10 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center gap-2 shrink-0 whitespace-nowrap"
               >
                 <FaGitlab className="text-base text-orange-600" />
                 <span className="text-sm font-medium text-stone-700">Soluciones</span>
               </a>
               <NextLink
                 href="/utilidades"
-                className="h-10 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center gap-2"
+                className="h-10 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center gap-2 shrink-0 whitespace-nowrap"
               >
                 <HiOutlineWrenchScrewdriver className="text-base text-stone-600" />
                 <span className="text-sm font-medium text-stone-700">Utilidades</span>
               </NextLink>
             </div>
-          </div>
-          
-
-          <div className="flex items-center gap-3">
-            <div className="hidden lg:flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2.5 max-w-xs">
-              <HiOutlineUser className="text-stone-400 text-lg flex-shrink-0" />
-              <span className="text-sm text-stone-700 truncate">{session?.user?.email}</span>
-            </div>
-            <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 sm:px-4 py-2 sm:py-2.5 flex-1 sm:flex-none sm:w-64">
-              <HiOutlineMagnifyingGlass className="text-stone-400 text-lg flex-shrink-0" />
-              <input
-                type="text"
-                placeholder="Buscar asignatura..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="flex-1 bg-transparent text-sm text-stone-700 placeholder:text-stone-400 outline-none min-w-0"
-              />
-            </div>
-            <button
-              onClick={() => signOut()}
-              className="btn-ghost text-sm"
-            >
-              Salir
-            </button>
-          </div>
         </motion.nav>
 
         {/* ── Header + Stats ── */}
