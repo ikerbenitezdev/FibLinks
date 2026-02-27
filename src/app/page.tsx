@@ -33,9 +33,36 @@ function normalizeUserId(value: string) {
   return value.trim().toLowerCase();
 }
 
+function getLocalStateKey(userId: string) {
+  return `fiblinks-user-state-${normalizeUserId(userId)}`;
+}
+
+function loadLocalUserState(userId: string): UserState {
+  if (typeof window === "undefined") return { activeSubjects: [] };
+  try {
+    const raw = localStorage.getItem(getLocalStateKey(userId));
+    if (!raw) return { activeSubjects: [] };
+    const parsed = JSON.parse(raw) as { activeSubjects?: string[] };
+    return {
+      activeSubjects: Array.isArray(parsed.activeSubjects) ? parsed.activeSubjects : [],
+    };
+  } catch {
+    return { activeSubjects: [] };
+  }
+}
+
+function saveLocalUserState(userId: string, state: UserState) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(getLocalStateKey(userId), JSON.stringify(state));
+  } catch {}
+}
+
 async function fetchUserState(userId: string): Promise<UserState> {
   const response = await fetch(`/api/user-state/${encodeURIComponent(userId)}`);
-  if (!response.ok) return { activeSubjects: [] };
+  if (!response.ok) {
+    throw new Error(`No se pudo cargar estado remoto: ${response.status}`);
+  }
   const payload = (await response.json()) as {
     state?: { activeSubjects?: string[] };
   };
@@ -45,11 +72,15 @@ async function fetchUserState(userId: string): Promise<UserState> {
 }
 
 async function saveUserState(userId: string, state: UserState) {
-  await fetch(`/api/user-state/${encodeURIComponent(userId)}`, {
+  const response = await fetch(`/api/user-state/${encodeURIComponent(userId)}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ activeSubjects: state.activeSubjects }),
   });
+
+  if (!response.ok) {
+    throw new Error(`No se pudo guardar estado remoto: ${response.status}`);
+  }
 }
 
 async function fetchCommunityLinks(subjectIds: string[]) {
@@ -191,13 +222,22 @@ export default function Home() {
     let active = true;
     setLoaded(false);
 
-    fetchUserState(userId).then((remoteState) => {
-      if (!active) return;
-      setState(remoteState);
-      setHydratedUserId(userId);
-      setLoaded(true);
-      if (remoteState.activeSubjects.length === 0) setShowSelector(true);
-    });
+    fetchUserState(userId)
+      .then((remoteState) => {
+        if (!active) return;
+        setState(remoteState);
+        setHydratedUserId(userId);
+        setLoaded(true);
+        if (remoteState.activeSubjects.length === 0) setShowSelector(true);
+      })
+      .catch(() => {
+        if (!active) return;
+        const localState = loadLocalUserState(userId);
+        setState(localState);
+        setHydratedUserId(userId);
+        setLoaded(true);
+        if (localState.activeSubjects.length === 0) setShowSelector(true);
+      });
 
     return () => {
       active = false;
@@ -207,7 +247,10 @@ export default function Home() {
   // Save user state to backend
   useEffect(() => {
     if (!loaded || !userId || hydratedUserId !== userId) return;
-    saveUserState(userId, state);
+    saveLocalUserState(userId, state);
+    saveUserState(userId, state).catch(() => {
+      // fallback local already saved
+    });
   }, [state, loaded, userId, hydratedUserId]);
 
   // Load community links for active subjects

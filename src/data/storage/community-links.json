@@ -1,4 +1,15 @@
 {
   "EC": [],
-  "FM": []
+  "FM": [],
+  "IC": [
+    {
+      "id": "b64d4626-10c1-4192-8a01-2f2e5c913662",
+      "title": "prueba",
+      "url": "https://fib-links.vercel.app/",
+      "description": "",
+      "createdBy": "thereki795@gmail.com",
+      "createdAt": "2026-02-27T09:28:09.357Z",
+      "moderationStatus": "pending"
+    }
+  ]
 }

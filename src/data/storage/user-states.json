@@ -25,8 +25,14 @@
     "updatedAt": "2026-02-27T01:01:43.572Z"
   },
   "ikerbenitezsoria@gmail.com": {
-    "activeSubjects": [],
-    "updatedAt": "2026-02-27T01:03:42.634Z"
+    "activeSubjects": [
+      "PRO1",
+      "PRO2",
+      "EC",
+      "M1",
+      "M2"
+    ],
+    "updatedAt": "2026-02-27T09:29:10.622Z"
   },
   "thereki795@gmail.com": {
     "activeSubjects": [
@@ -35,6 +41,6 @@
       "FM",
       "F"
     ],
-    "updatedAt": "2026-02-27T01:12:03.131Z"
+    "updatedAt": "2026-02-27T09:28:17.710Z"
   }
 }
