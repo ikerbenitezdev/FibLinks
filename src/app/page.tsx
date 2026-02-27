@@ -164,6 +164,7 @@ export default function Home() {
   const [pendingLinks, setPendingLinks] = useState<PendingLinkItem[]>([]);
   const [canModerate, setCanModerate] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [hydratedUserId, setHydratedUserId] = useState("");
   const [showSelector, setShowSelector] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -179,8 +180,10 @@ export default function Home() {
     if (!userId) {
       setState({ activeSubjects: [] });
       setCommunityLinks({});
+      setGlobalDefaultLinks({});
       setPendingLinks([]);
       setCanModerate(false);
+      setHydratedUserId("");
       setLoaded(true);
       return;
     }
@@ -191,6 +194,7 @@ export default function Home() {
     fetchUserState(userId).then((remoteState) => {
       if (!active) return;
       setState(remoteState);
+      setHydratedUserId(userId);
       setLoaded(true);
       if (remoteState.activeSubjects.length === 0) setShowSelector(true);
     });
@@ -202,9 +206,9 @@ export default function Home() {
 
   // Save user state to backend
   useEffect(() => {
-    if (!loaded || !userId) return;
+    if (!loaded || !userId || hydratedUserId !== userId) return;
     saveUserState(userId, state);
-  }, [state, loaded, userId]);
+  }, [state, loaded, userId, hydratedUserId]);
 
   // Load community links for active subjects
   useEffect(() => {
