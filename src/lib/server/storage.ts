@@ -9,6 +9,12 @@ const storageKeyPrefix = process.env.STORAGE_KEY_PREFIX ?? "fiblinks";
 
 console.info(`[storage] backend=${redis ? "redis" : "file"} prefix=${storageKeyPrefix}`);
 
+if (!redis && process.env.VERCEL) {
+  console.warn(
+    "[storage] VERCEL detectado sin Redis/KV: los datos en /tmp no son persistentes entre despliegues o reinicios. Configura UPSTASH_REDIS_REST_URL y UPSTASH_REDIS_REST_TOKEN."
+  );
+}
+
 const storageDir = process.env.VERCEL
   ? path.join("/tmp", "fiblinks-storage")
   : path.join(process.cwd(), "src", "data", "storage");

@@ -217,10 +217,16 @@ export default function Home() {
     fetchUserState(userId)
       .then((remoteState) => {
         if (!active) return;
-        setState(remoteState);
+        const localState = loadLocalUserState(userId);
+        const shouldRecoverFromLocal =
+          remoteState.activeSubjects.length === 0 && localState.activeSubjects.length > 0;
+
+        setState(shouldRecoverFromLocal ? localState : remoteState);
         setHydratedUserId(userId);
         setLoaded(true);
-        if (remoteState.activeSubjects.length === 0) setShowSelector(true);
+        if ((shouldRecoverFromLocal ? localState : remoteState).activeSubjects.length === 0) {
+          setShowSelector(true);
+        }
       })
       .catch(() => {
         if (!active) return;
