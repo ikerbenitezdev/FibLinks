@@ -59,7 +59,9 @@ function saveLocalUserState(userId: string, state: UserState) {
 }
 
 async function fetchUserState(userId: string): Promise<UserState> {
-  const response = await fetch(`/api/user-state/${encodeURIComponent(userId)}`);
+  const response = await fetch(`/api/user-state/${encodeURIComponent(userId)}`, {
+    cache: "no-store",
+  });
   if (!response.ok) {
     throw new Error(`No se pudo cargar estado remoto: ${response.status}`);
   }
@@ -215,10 +217,15 @@ export default function Home() {
     fetchUserState(userId)
       .then((remoteState) => {
         if (!active) return;
-        setState(remoteState);
+        const localState = loadLocalUserState(userId);
+        const nextState =
+          remoteState.activeSubjects.length > 0 || localState.activeSubjects.length === 0
+            ? remoteState
+            : localState;
+        setState(nextState);
         setHydratedUserId(userId);
         setLoaded(true);
-        if (remoteState.activeSubjects.length === 0) setShowSelector(true);
+        if (nextState.activeSubjects.length === 0) setShowSelector(true);
       })
       .catch(() => {
         if (!active) return;

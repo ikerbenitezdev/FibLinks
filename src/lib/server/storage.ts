@@ -58,16 +58,18 @@ async function ensureFile(filePath: string, fallback: unknown) {
 
 async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
   if (redis) {
+    const key = getStorageKey(filePath);
     try {
-      const key = getStorageKey(filePath);
       const value = await redis.get<T>(key);
       if (value === null) {
         await redis.set(key, fallback);
         return fallback;
       }
       return value;
-    } catch {
-      return fallback;
+    } catch (error) {
+      throw new Error(
+        `[storage] redis read failed for key=${key}: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
