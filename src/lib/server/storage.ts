@@ -17,10 +17,18 @@ export interface StoredCommunityLink {
   description?: string;
   createdBy: string;
   createdAt: string;
+  moderationStatus?: "pending" | "approved";
+  moderatedBy?: string;
+  moderatedAt?: string;
 }
 
 type UserStateStore = Record<string, StoredUserState>;
 type CommunityLinksStore = Record<string, StoredCommunityLink[]>;
+
+const MODERATOR_USERS = (process.env.MODERATOR_USERS ?? process.env.NEXT_PUBLIC_MODERATOR_USERS ?? "admin")
+  .split(",")
+  .map((value) => normalizeUserId(value))
+  .filter(Boolean);
 
 async function ensureFile(filePath: string, fallback: unknown) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
@@ -50,6 +58,15 @@ export function normalizeUserId(value: string) {
   return value.trim().toLowerCase();
 }
 
+export function isModeratorUser(userId: string) {
+  const normalized = normalizeUserId(userId);
+  return MODERATOR_USERS.includes(normalized);
+}
+
+function getModerationStatus(link: StoredCommunityLink) {
+  return link.moderationStatus ?? "approved";
+}
+
 export async function getUserState(userId: string): Promise<StoredUserState> {
   const normalized = normalizeUserId(userId);
   const store = await readJsonFile<UserStateStore>(userStatePath, {});
@@ -71,7 +88,23 @@ export async function getCommunityLinksBySubjects(subjectIds: string[]) {
   const result: CommunityLinksStore = {};
 
   for (const subjectId of subjectIds) {
-    result[subjectId] = store[subjectId] ?? [];
+    const links = store[subjectId] ?? [];
+    result[subjectId] = links.filter((link) => getModerationStatus(link) === "approved");
+  }
+
+  return result;
+}
+
+export async function getPendingCommunityLinks() {
+  const store = await readJsonFile<CommunityLinksStore>(communityLinksPath, {});
+  const result: Array<{ subjectId: string; link: StoredCommunityLink }> = [];
+
+  for (const [subjectId, links] of Object.entries(store)) {
+    for (const link of links) {
+      if (getModerationStatus(link) === "pending") {
+        result.push({ subjectId, link });
+      }
+    }
   }
 
   return result;
@@ -94,6 +127,7 @@ export async function addCommunityLink(input: {
     description: input.description,
     createdBy: normalizeUserId(input.userId),
     createdAt: new Date().toISOString(),
+    moderationStatus: "pending",
   };
 
   store[input.subjectId] = [...subjectLinks, newLink];
@@ -113,7 +147,8 @@ export async function deleteCommunityLink(input: {
 
   const target = subjectLinks.find((link) => link.id === input.linkId);
   if (!target) return { deleted: false, reason: "not_found" as const };
-  if (target.createdBy !== normalizedUser) {
+  const normalizedOwner = normalizeUserId(target.createdBy);
+  if (normalizedOwner && normalizedOwner !== normalizedUser) {
     return { deleted: false, reason: "forbidden" as const };
   }
 
@@ -121,4 +156,35 @@ export async function deleteCommunityLink(input: {
   await writeJsonFile(communityLinksPath, store);
 
   return { deleted: true as const };
+}
+
+export async function moderateCommunityLink(input: {
+  subjectId: string;
+  linkId: string;
+  moderatorUserId: string;
+  action: "approve" | "reject";
+}) {
+  const store = await readJsonFile<CommunityLinksStore>(communityLinksPath, {});
+  const subjectLinks = store[input.subjectId] ?? [];
+
+  const targetIndex = subjectLinks.findIndex((link) => link.id === input.linkId);
+  if (targetIndex === -1) return { updated: false as const, reason: "not_found" as const };
+
+  if (input.action === "reject") {
+    store[input.subjectId] = subjectLinks.filter((link) => link.id !== input.linkId);
+    await writeJsonFile(communityLinksPath, store);
+    return { updated: true as const };
+  }
+
+  const target = subjectLinks[targetIndex];
+  subjectLinks[targetIndex] = {
+    ...target,
+    moderationStatus: "approved",
+    moderatedBy: normalizeUserId(input.moderatorUserId),
+    moderatedAt: new Date().toISOString(),
+  };
+
+  store[input.subjectId] = subjectLinks;
+  await writeJsonFile(communityLinksPath, store);
+  return { updated: true as const };
 }

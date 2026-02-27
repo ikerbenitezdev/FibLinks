@@ -1,20 +1,18 @@
 {
-  "invitado": {
-    "activeSubjects": [
-      "PRO2",
-      "EC",
-      "M1",
-      "M2"
-    ],
-    "updatedAt": "2026-02-26T23:26:22.839Z"
-  },
   "iker": {
     "activeSubjects": [
       "PRO2",
       "EC",
       "M1",
-      "M2"
+      "M2",
+      "PRO1",
+      "F",
+      "IC"
     ],
-    "updatedAt": "2026-02-27T00:02:02.741Z"
+    "updatedAt": "2026-02-27T00:40:34.786Z"
+  },
+  "invitado": {
+    "activeSubjects": [],
+    "updatedAt": "2026-02-27T00:40:32.260Z"
   }
 }

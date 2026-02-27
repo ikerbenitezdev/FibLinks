@@ -5,6 +5,7 @@ export interface Link {
   description?: string;
   source?: "default" | "community";
   createdBy?: string;
+  moderationStatus?: "pending" | "approved";
 }
 
 export interface SubjectDef {

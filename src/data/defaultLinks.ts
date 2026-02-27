@@ -1,18 +1,29 @@
 import { Link } from "@/types";
 
 export const defaultLinksBySubject: Record<string, Link[]> = {
-  PRO1: [
-    {
-      id: "def-pro1-problemas",
-      title: "Problemas PRO1",
-      url: "https://raco.fib.upc.edu/",
-      description: "Coleccion de ejercicios y entregas",
-      source: "default",
-    },
+    F: [
+        {
+            id: "def-f-apuntes",
+            title: "Web Fisica",
+            url: "https://fisica.upc.edu/ca/sf/SF11-FIB/docencia/fisica-1",
+            description: "Material oficial y transparencias",
+            source: "default",
+        },
+    ],
+    IC: [
+        {
+            id: "def-ic-apuntes",
+            title: "Clases IC FIB",
+            url: "https://sites.google.com/upc.edu/ic-fib?pli=1&authuser=7",
+            description: "Clases grabadas entrar con correo uni",
+            source: "default",
+        },
+    ],
+    PRO1: [
     {
       id: "def-pro1-apuntes",
-      title: "Apuntes PRO1",
-      url: "https://atenea.upc.edu/",
+      title: "Web PRO1",
+      url: "https://pro1.cs.upc.edu/",
       description: "Material oficial y transparencias",
       source: "default",
     },

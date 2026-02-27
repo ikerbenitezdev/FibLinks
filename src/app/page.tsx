@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useMemo } from "react";
 import NextLink from "next/link";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaGitlab } from "react-icons/fa6";
 import {
   HiOutlineAcademicCap,
+  HiOutlineCheck,
   HiOutlineLink,
   HiOutlineAdjustmentsHorizontal,
   HiOutlineMagnifyingGlass,
@@ -20,8 +22,12 @@ import { getDefaultLinks } from "@/data/defaultLinks";
 import SubjectCard from "@/components/SubjectCard";
 import CourseSelector from "@/components/CourseSelector";
 
-const USER_ID_KEY = "fiblinks-user-id";
 const allSubjectsMap = getAllSubjects();
+
+type PendingLinkItem = {
+  subjectId: string;
+  link: Link;
+};
 
 function normalizeUserId(value: string) {
   return value.trim().toLowerCase();
@@ -62,6 +68,7 @@ async function fetchCommunityLinks(subjectIds: string[]) {
         url: string;
         description?: string;
         createdBy?: string;
+        moderationStatus?: "pending" | "approved";
       }>
     >;
   };
@@ -75,28 +82,77 @@ async function fetchCommunityLinks(subjectIds: string[]) {
   );
 }
 
+async function fetchPendingLinks(): Promise<{
+  allowed: boolean;
+  links: PendingLinkItem[];
+}> {
+  const params = new URLSearchParams({ status: "pending" });
+  const response = await fetch(`/api/community-links?${params.toString()}`);
+
+  if (response.status === 403) {
+    return { allowed: false, links: [] };
+  }
+
+  if (!response.ok) {
+    return { allowed: true, links: [] };
+  }
+
+  const payload = (await response.json()) as {
+    pendingLinks?: Array<{
+      subjectId: string;
+      link: Link;
+    }>;
+  };
+
+  const links = (payload.pendingLinks ?? []).map((item) => ({
+    subjectId: item.subjectId,
+    link: { ...item.link, source: "community" as const },
+  }));
+
+  return { allowed: true, links };
+}
+
+async function moderatePendingLink(input: {
+  subjectId: string;
+  linkId: string;
+  action: "approve" | "reject";
+}) {
+  const response = await fetch("/api/community-links", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  return response.ok;
+}
+
 export default function Home() {
+  const { data: session, status } = useSession();
   const [state, setState] = useState<UserState>({ activeSubjects: [] });
-  const [userId, setUserId] = useState("");
-  const [pendingUserId, setPendingUserId] = useState("");
   const [communityLinks, setCommunityLinks] = useState<Record<string, Link[]>>({});
+  const [pendingLinks, setPendingLinks] = useState<PendingLinkItem[]>([]);
+  const [canModerate, setCanModerate] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [showSelector, setShowSelector] = useState(false);
   const [search, setSearch] = useState("");
 
-  // Load user identity from localStorage
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = localStorage.getItem(USER_ID_KEY);
-    const normalized = normalizeUserId(stored || "invitado");
-    localStorage.setItem(USER_ID_KEY, normalized);
-    setUserId(normalized);
-    setPendingUserId(normalized);
-  }, []);
+  const userId = useMemo(
+    () => normalizeUserId(session?.user?.email ?? ""),
+    [session?.user?.email]
+  );
 
   // Load user state from backend when user changes
   useEffect(() => {
-    if (!userId) return;
+    if (status === "loading") return;
+
+    if (!userId) {
+      setState({ activeSubjects: [] });
+      setCommunityLinks({});
+      setPendingLinks([]);
+      setCanModerate(false);
+      setLoaded(true);
+      return;
+    }
 
     let active = true;
     setLoaded(false);
@@ -111,7 +167,7 @@ export default function Home() {
     return () => {
       active = false;
     };
-  }, [userId]);
+  }, [userId, status]);
 
   // Save user state to backend
   useEffect(() => {
@@ -126,6 +182,20 @@ export default function Home() {
       setCommunityLinks(linksBySubject);
     });
   }, [state.activeSubjects, loaded]);
+
+  // Load pending links if current user can moderate
+  useEffect(() => {
+    if (!userId) {
+      setCanModerate(false);
+      setPendingLinks([]);
+      return;
+    }
+
+    fetchPendingLinks().then(({ allowed, links }) => {
+      setCanModerate(allowed);
+      setPendingLinks(links);
+    });
+  }, [userId]);
 
   const activeSet = useMemo(() => new Set(state.activeSubjects), [state.activeSubjects]);
 
@@ -162,7 +232,7 @@ export default function Home() {
     const response = await fetch("/api/community-links", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subjectId, title, url, description, userId }),
+      body: JSON.stringify({ subjectId, title, url, description }),
     });
 
     if (!response.ok) return;
@@ -174,10 +244,18 @@ export default function Home() {
     if (!payload.link) return;
 
     const newLink = { ...payload.link, source: "community" as const };
-    setCommunityLinks((prev) => ({
-      ...prev,
-      [subjectId]: [...(prev[subjectId] ?? []), newLink],
-    }));
+
+    if (newLink.moderationStatus === "approved") {
+      setCommunityLinks((prev) => ({
+        ...prev,
+        [subjectId]: [...(prev[subjectId] ?? []), newLink],
+      }));
+      return;
+    }
+
+    if (canModerate) {
+      setPendingLinks((prev) => [{ subjectId, link: newLink }, ...prev]);
+    }
   };
 
   const deleteLink = async (subjectId: string, linkId: string) => {
@@ -186,7 +264,7 @@ export default function Home() {
     const response = await fetch("/api/community-links", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subjectId, linkId, userId }),
+      body: JSON.stringify({ subjectId, linkId }),
     });
 
     if (!response.ok) return;
@@ -197,12 +275,24 @@ export default function Home() {
     }));
   };
 
-  const applyUserIdChange = () => {
-    const normalized = normalizeUserId(pendingUserId);
-    if (!normalized || normalized === userId || typeof window === "undefined") return;
-    localStorage.setItem(USER_ID_KEY, normalized);
-    setCommunityLinks({});
-    setUserId(normalized);
+  const moderateLink = async (
+    subjectId: string,
+    linkId: string,
+    action: "approve" | "reject"
+  ) => {
+    if (!userId) return;
+
+    const ok = await moderatePendingLink({ subjectId, linkId, action });
+    if (!ok) return;
+
+    setPendingLinks((prev) =>
+      prev.filter((item) => !(item.subjectId === subjectId && item.link.id === linkId))
+    );
+
+    if (action === "approve") {
+      const linksBySubject = await fetchCommunityLinks(state.activeSubjects);
+      setCommunityLinks(linksBySubject);
+    }
   };
 
   // Active subjects with their definitions
@@ -221,7 +311,30 @@ export default function Home() {
       s!.id.toLowerCase().startsWith(search.toLowerCase())
   );
 
-  if (!loaded) return null;
+  if (status === "loading" || !loaded) return null;
+
+  if (!userId) {
+    return (
+      <main className="min-h-screen">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-10 py-10">
+          <div className="card p-8 sm:p-10 text-center">
+            <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight">
+              Inicia sesión con Google
+            </h1>
+            <p className="text-stone-500 mt-2 text-sm sm:text-base">
+              Necesitas iniciar sesión para guardar tus asignaturas y moderar enlaces.
+            </p>
+            <button
+              onClick={() => signIn("google")}
+              className="btn-primary mt-6"
+            >
+              Entrar con Google
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen">
@@ -365,16 +478,9 @@ export default function Home() {
           
 
           <div className="flex items-center gap-3">
-            <div className="hidden lg:flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2.5 w-64">
+            <div className="hidden lg:flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2.5 max-w-xs">
               <HiOutlineUser className="text-stone-400 text-lg flex-shrink-0" />
-              <input
-                type="text"
-                value={pendingUserId}
-                onChange={(e) => setPendingUserId(e.target.value)}
-                onBlur={applyUserIdChange}
-                className="flex-1 bg-transparent text-sm text-stone-700 placeholder:text-stone-400 outline-none min-w-0"
-                placeholder="usuario"
-              />
+              <span className="text-sm text-stone-700 truncate">{session?.user?.email}</span>
             </div>
             <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 sm:px-4 py-2 sm:py-2.5 flex-1 sm:flex-none sm:w-64">
               <HiOutlineMagnifyingGlass className="text-stone-400 text-lg flex-shrink-0" />
@@ -386,15 +492,12 @@ export default function Home() {
                 className="flex-1 bg-transparent text-sm text-stone-700 placeholder:text-stone-400 outline-none min-w-0"
               />
             </div>
-            {/* <button
-              onClick={() => setShowSelector(!showSelector)}
-              className={`hidden sm:inline-flex btn-primary rounded-xl h-11 px-5 text-sm ${
-                showSelector ? "!bg-violet-600 hover:!bg-violet-700" : ""
-              }`}
+            <button
+              onClick={() => signOut()}
+              className="btn-ghost text-sm"
             >
-              <HiOutlineAdjustmentsHorizontal className="text-lg" />
-              <span>Gestionar</span>
-            </button> */}
+              Salir
+            </button>
           </div>
         </motion.nav>
 
@@ -432,6 +535,79 @@ export default function Home() {
             </div>
           </div>
         </motion.section>
+
+        {canModerate && (
+          <section className="mb-8 sm:mb-10">
+            <div className="card p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-base sm:text-lg font-semibold text-stone-900">
+                    Enlaces pendientes de revisión
+                  </h2>
+                  <p className="text-xs sm:text-sm text-stone-400 mt-0.5">
+                    Revisa, acepta o rechaza enlaces de la comunidad.
+                  </p>
+                </div>
+                <span className="badge">{pendingLinks.length} pendientes</span>
+              </div>
+
+              {pendingLinks.length === 0 ? (
+                <p className="text-sm text-stone-400">No hay enlaces pendientes ahora mismo.</p>
+              ) : (
+                <div className="space-y-2">
+                  {pendingLinks.map((item) => {
+                    const subjectName = allSubjectsMap.get(item.subjectId)?.name ?? item.subjectId;
+                    return (
+                      <div
+                        key={`${item.subjectId}-${item.link.id}`}
+                        className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-3 sm:px-4 flex flex-col sm:flex-row sm:items-center gap-3"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-stone-400">
+                            {item.subjectId} · {subjectName}
+                          </p>
+                          <a
+                            href={item.link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-medium text-stone-700 hover:text-violet-600 transition-colors"
+                          >
+                            {item.link.title}
+                          </a>
+                          {item.link.description && (
+                            <p className="text-xs text-stone-500 mt-0.5 truncate">
+                              {item.link.description}
+                            </p>
+                          )}
+                          <p className="text-[11px] text-stone-400 mt-0.5">
+                            Enviado por {item.link.createdBy ?? "anonimo"}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => moderateLink(item.subjectId, item.link.id, "approve")}
+                            className="h-9 px-3 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors text-sm font-medium inline-flex items-center gap-1.5"
+                          >
+                            <HiOutlineCheck className="text-base" />
+                            Aceptar
+                          </button>
+                          <button
+                            onClick={() => moderateLink(item.subjectId, item.link.id, "reject")}
+                            className="h-9 px-3 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors text-sm font-medium inline-flex items-center gap-1.5"
+                          >
+                            <HiOutlineXMark className="text-base" />
+                            Rechazar
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* ── Course Selector Panel ── */}
         <AnimatePresence>

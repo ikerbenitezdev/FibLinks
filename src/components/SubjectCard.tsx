@@ -38,6 +38,10 @@ function getColor(id: string) {
   return COLORS[Math.abs(hash) % COLORS.length];
 }
 
+function normalizeUserId(value?: string) {
+  return (value ?? "").trim().toLowerCase();
+}
+
 export default function SubjectCard({
   subject,
   data,
@@ -54,6 +58,7 @@ export default function SubjectCard({
 
   const color = getColor(subject.id);
   const links = data.links;
+  const normalizedCurrentUser = normalizeUserId(currentUserId);
 
   const handleAddLink = (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,7 +167,9 @@ export default function SubjectCard({
                           : `Comunidad · ${link.createdBy ?? "anonimo"}`}
                       </p>
                     </div>
-                    {link.source !== "default" && link.createdBy === currentUserId && (
+                    {link.source !== "default" &&
+                      (normalizeUserId(link.createdBy) === normalizedCurrentUser ||
+                        !normalizeUserId(link.createdBy)) && (
                       <button
                         onClick={() => onDeleteLink(subject.id, link.id)}
                         className="h-8 w-8 rounded-lg flex items-center justify-center text-stone-400 hover:text-red-500 hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100 transition-all flex-shrink-0"
