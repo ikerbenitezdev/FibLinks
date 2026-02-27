@@ -217,15 +217,10 @@ export default function Home() {
     fetchUserState(userId)
       .then((remoteState) => {
         if (!active) return;
-        const localState = loadLocalUserState(userId);
-        const nextState =
-          remoteState.activeSubjects.length > 0 || localState.activeSubjects.length === 0
-            ? remoteState
-            : localState;
-        setState(nextState);
+        setState(remoteState);
         setHydratedUserId(userId);
         setLoaded(true);
-        if (nextState.activeSubjects.length === 0) setShowSelector(true);
+        if (remoteState.activeSubjects.length === 0) setShowSelector(true);
       })
       .catch(() => {
         if (!active) return;
@@ -342,7 +337,15 @@ export default function Home() {
       body: JSON.stringify({ subjectId, linkId, source }),
     });
 
-    if (!response.ok) return;
+    if (!response.ok) {
+      if (source === "community" && response.status === 404) {
+        setCommunityLinks((prev) => ({
+          ...prev,
+          [subjectId]: (prev[subjectId] ?? []).filter((link) => link.id !== linkId),
+        }));
+      }
+      return;
+    }
 
     if (source === "default") {
       setRemovedDefaultLinkIds((prev) => {
@@ -386,13 +389,11 @@ export default function Home() {
     setCanModerate(allowed);
     setPendingLinks(links);
 
-    if (action === "approve") {
-      const { linksBySubject, removedDefaultLinkIdsBySubject } = await fetchCommunityLinks(
-        state.activeSubjects
-      );
-      setCommunityLinks(linksBySubject);
-      setRemovedDefaultLinkIds(removedDefaultLinkIdsBySubject);
-    }
+    const { linksBySubject, removedDefaultLinkIdsBySubject } = await fetchCommunityLinks(
+      state.activeSubjects
+    );
+    setCommunityLinks(linksBySubject);
+    setRemovedDefaultLinkIds(removedDefaultLinkIdsBySubject);
   };
 
   // Active subjects with their definitions
