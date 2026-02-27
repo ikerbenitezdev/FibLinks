@@ -3,6 +3,8 @@ export interface Link {
   title: string;
   url: string;
   description?: string;
+  source?: "default" | "community";
+  createdBy?: string;
 }
 
 export interface SubjectDef {
@@ -29,8 +31,7 @@ export interface SubjectUserData {
   links: Link[];
 }
 
-/** Estado global guardado en localStorage */
+/** Estado global guardado por usuario */
 export interface UserState {
-  activeSubjects: string[];                  // ids de asignaturas activas
-  subjectData: Record<string, SubjectUserData>;  // links por asignatura
+  activeSubjects: string[];
 }

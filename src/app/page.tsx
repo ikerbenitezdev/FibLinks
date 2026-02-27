@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import NextLink from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { FaGitlab } from "react-icons/fa6";
 import {
   HiOutlineAcademicCap,
   HiOutlineLink,
@@ -9,47 +11,121 @@ import {
   HiOutlineMagnifyingGlass,
   HiOutlineSquares2X2,
   HiOutlineXMark,
+  HiOutlineUser,
+  HiOutlineWrenchScrewdriver,
 } from "react-icons/hi2";
-import { Link, SubjectUserData, UserState } from "@/types";
+import { Link, UserState } from "@/types";
 import { getAllSubjects } from "@/data/subjects";
+import { getDefaultLinks } from "@/data/defaultLinks";
 import SubjectCard from "@/components/SubjectCard";
 import CourseSelector from "@/components/CourseSelector";
 
-const STORAGE_KEY = "fiblinks-state";
+const USER_ID_KEY = "fiblinks-user-id";
 const allSubjectsMap = getAllSubjects();
 
-function loadState(): UserState {
-  if (typeof window === "undefined") return { activeSubjects: [], subjectData: {} };
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return { activeSubjects: [], subjectData: {} };
+function normalizeUserId(value: string) {
+  return value.trim().toLowerCase();
 }
 
-function saveState(state: UserState) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+async function fetchUserState(userId: string): Promise<UserState> {
+  const response = await fetch(`/api/user-state/${encodeURIComponent(userId)}`);
+  if (!response.ok) return { activeSubjects: [] };
+  const payload = (await response.json()) as {
+    state?: { activeSubjects?: string[] };
+  };
+  return {
+    activeSubjects: payload.state?.activeSubjects ?? [],
+  };
+}
+
+async function saveUserState(userId: string, state: UserState) {
+  await fetch(`/api/user-state/${encodeURIComponent(userId)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ activeSubjects: state.activeSubjects }),
+  });
+}
+
+async function fetchCommunityLinks(subjectIds: string[]) {
+  if (subjectIds.length === 0) return {} as Record<string, Link[]>;
+
+  const params = new URLSearchParams({ subjectIds: subjectIds.join(",") });
+  const response = await fetch(`/api/community-links?${params.toString()}`);
+  if (!response.ok) return {} as Record<string, Link[]>;
+
+  const payload = (await response.json()) as {
+    linksBySubject?: Record<
+      string,
+      Array<{
+        id: string;
+        title: string;
+        url: string;
+        description?: string;
+        createdBy?: string;
+      }>
+    >;
+  };
+
+  const linksBySubject = payload.linksBySubject ?? {};
+  return Object.fromEntries(
+    Object.entries(linksBySubject).map(([subjectId, links]) => [
+      subjectId,
+      links.map((link) => ({ ...link, source: "community" as const })),
+    ])
+  );
 }
 
 export default function Home() {
-  const [state, setState] = useState<UserState>({ activeSubjects: [], subjectData: {} });
+  const [state, setState] = useState<UserState>({ activeSubjects: [] });
+  const [userId, setUserId] = useState("");
+  const [pendingUserId, setPendingUserId] = useState("");
+  const [communityLinks, setCommunityLinks] = useState<Record<string, Link[]>>({});
   const [loaded, setLoaded] = useState(false);
   const [showSelector, setShowSelector] = useState(false);
   const [search, setSearch] = useState("");
 
-  // Load from localStorage
+  // Load user identity from localStorage
   useEffect(() => {
-    const s = loadState();
-    setState(s);
-    setLoaded(true);
-    // If first visit, show course selector
-    if (s.activeSubjects.length === 0) setShowSelector(true);
+    if (typeof window === "undefined") return;
+    const stored = localStorage.getItem(USER_ID_KEY);
+    const normalized = normalizeUserId(stored || "invitado");
+    localStorage.setItem(USER_ID_KEY, normalized);
+    setUserId(normalized);
+    setPendingUserId(normalized);
   }, []);
 
-  // Save on change
+  // Load user state from backend when user changes
   useEffect(() => {
-    if (loaded) saveState(state);
-  }, [state, loaded]);
+    if (!userId) return;
+
+    let active = true;
+    setLoaded(false);
+
+    fetchUserState(userId).then((remoteState) => {
+      if (!active) return;
+      setState(remoteState);
+      setLoaded(true);
+      if (remoteState.activeSubjects.length === 0) setShowSelector(true);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
+  // Save user state to backend
+  useEffect(() => {
+    if (!loaded || !userId) return;
+    saveUserState(userId, state);
+  }, [state, loaded, userId]);
+
+  // Load community links for active subjects
+  useEffect(() => {
+    if (!loaded) return;
+    fetchCommunityLinks(state.activeSubjects).then((linksBySubject) => {
+      setCommunityLinks(linksBySubject);
+    });
+  }, [state.activeSubjects, loaded]);
 
   const activeSet = useMemo(() => new Set(state.activeSubjects), [state.activeSubjects]);
 
@@ -80,29 +156,53 @@ export default function Home() {
     }));
   };
 
-  const addLink = (subjectId: string, title: string, url: string, description?: string) => {
-    const newLink: Link = { id: crypto.randomUUID(), title, url, description };
-    setState((prev) => ({
+  const addLink = async (subjectId: string, title: string, url: string, description?: string) => {
+    if (!userId) return;
+
+    const response = await fetch("/api/community-links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subjectId, title, url, description, userId }),
+    });
+
+    if (!response.ok) return;
+
+    const payload = (await response.json()) as {
+      link?: Link;
+    };
+
+    if (!payload.link) return;
+
+    const newLink = { ...payload.link, source: "community" as const };
+    setCommunityLinks((prev) => ({
       ...prev,
-      subjectData: {
-        ...prev.subjectData,
-        [subjectId]: {
-          links: [...(prev.subjectData[subjectId]?.links || []), newLink],
-        },
-      },
+      [subjectId]: [...(prev[subjectId] ?? []), newLink],
     }));
   };
 
-  const deleteLink = (subjectId: string, linkId: string) => {
-    setState((prev) => ({
+  const deleteLink = async (subjectId: string, linkId: string) => {
+    if (!userId) return;
+
+    const response = await fetch("/api/community-links", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subjectId, linkId, userId }),
+    });
+
+    if (!response.ok) return;
+
+    setCommunityLinks((prev) => ({
       ...prev,
-      subjectData: {
-        ...prev.subjectData,
-        [subjectId]: {
-          links: (prev.subjectData[subjectId]?.links || []).filter((l) => l.id !== linkId),
-        },
-      },
+      [subjectId]: (prev[subjectId] ?? []).filter((link) => link.id !== linkId),
     }));
+  };
+
+  const applyUserIdChange = () => {
+    const normalized = normalizeUserId(pendingUserId);
+    if (!normalized || normalized === userId || typeof window === "undefined") return;
+    localStorage.setItem(USER_ID_KEY, normalized);
+    setCommunityLinks({});
+    setUserId(normalized);
   };
 
   // Active subjects with their definitions
@@ -110,10 +210,10 @@ export default function Home() {
     .map((id) => allSubjectsMap.get(id))
     .filter(Boolean);
 
-  const totalLinks = Object.values(state.subjectData).reduce(
-    (acc, d) => acc + (d.links?.length || 0),
-    0
-  );
+  const totalLinks = activeSubjects.reduce((acc, subject) => {
+    if (!subject) return acc;
+    return acc + getDefaultLinks(subject.id).length + (communityLinks[subject.id]?.length ?? 0);
+  }, 0);
 
   const filtered = activeSubjects.filter(
     (s) =>
@@ -132,33 +232,150 @@ export default function Home() {
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 sm:mb-10"
         >
-          <div className="flex items-center justify-between sm:justify-start gap-3">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-stone-900 flex items-center justify-center">
-                <span className="text-white text-base sm:text-lg font-bold">F</span>
+          <div className="w-full sm:w-auto flex flex-col gap-2.5">
+            <div className="flex items-center justify-between sm:justify-start gap-3">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-stone-900 flex items-center justify-center">
+                  <span className="text-white text-base sm:text-lg font-bold">F</span>
+                </div>
+                <span className="text-lg sm:text-xl font-semibold text-stone-900 tracking-tight">
+                  FibLinks
+                </span>
               </div>
-              <span className="text-lg sm:text-xl font-semibold text-stone-900 tracking-tight">
-                FibLinks
-              </span>
+              <button
+                onClick={() => setShowSelector(!showSelector)}
+                className={`btn-primary rounded-xl h-10 px-4 text-sm ${
+                  showSelector ? "!bg-violet-600" : ""
+                }`}
+              >
+                <HiOutlineAdjustmentsHorizontal className="text-lg" />
+              </button>
             </div>
-            <button
-              onClick={() => setShowSelector(!showSelector)}
-              className={`btn-primary rounded-xl h-10 px-4 text-sm ${
-                showSelector ? "!bg-violet-600" : ""
-              }`}
-            >
-              <HiOutlineAdjustmentsHorizontal className="text-lg" />
-            </button>
-            <button>
-              <a href="https://raco.fib.upc.edu/">Racó</a>
-            </button>
-            <button>
-              <a href="https://atenea.upc.edu/">Atenea</a>
-            </button>
+
+            <div className="flex sm:hidden items-center gap-2 overflow-x-auto pb-1">
+              <a
+                href="https://raco.fib.upc.edu/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-9 min-w-[92px] px-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <img src="/logos/raco.png" alt="Racó" className="h-4.5 w-6.5" />
+                <span className="text-xs font-medium text-stone-700">Racó</span>
+              </a>
+              <a
+                href="https://atenea.upc.edu/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-9 min-w-[92px] px-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <img src="/logos/atenea.png" alt="Atenea" className="h-4.5 w-4.5" />
+                <span className="text-xs font-medium text-stone-700">Atenea</span>
+              </a>
+              <a
+                href="https://whola.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-9 min-w-[92px] px-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <img src="/logos/whola.png" alt="Whola" className="h-4.5 w-4.5" />
+                <span className="text-xs font-medium text-stone-700">Whola</span>
+              </a>
+              <a
+                href="https://jutge.org/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-9 min-w-[92px] px-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <img src="/logos/jutge.png" alt="Jutge" className="h-4.5 w-4.5" />
+                <span className="text-xs font-medium text-stone-700">Jutge</span>
+              </a>
+              <a
+                href="https://gitlab.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-9 min-w-[108px] px-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <FaGitlab className="text-sm text-orange-600" />
+                <span className="text-xs font-medium text-stone-700">Soluciones</span>
+              </a>
+              <NextLink
+                href="/utilidades"
+                className="h-9 min-w-[108px] px-2.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <HiOutlineWrenchScrewdriver className="text-sm text-stone-600" />
+                <span className="text-xs font-medium text-stone-700">Utilidades</span>
+              </NextLink>
+            </div>
+
+            <div className="hidden sm:flex items-center gap-2">
+              <a
+                href="https://raco.fib.upc.edu/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-10 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center gap-2"
+              >
+                <img src="/logos/raco.png" alt="Racó" className="h-5 w-8" />
+                <span className="text-sm font-medium text-stone-700">Racó</span>
+              </a>
+              <a
+                href="https://atenea.upc.edu/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-10 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center gap-2"
+              >
+                <img src="/logos/atenea.png" alt="Atenea" className="h-5 w-5" />
+                <span className="text-sm font-medium text-stone-700">Atenea</span>
+              </a>
+              <a
+                href="https://whola.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-10 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center gap-2"
+              >
+                <img src="/logos/whola.png" alt="Whola" className="h-5 w-5" />
+                <span className="text-sm font-medium text-stone-700">Whola</span>
+              </a>
+              <a
+                href="https://jutge.org/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-10 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center gap-2"
+              >
+                <img src="/logos/jutge.png" alt="Jutge" className="h-5 w-5" />
+                <span className="text-sm font-medium text-stone-700">Jutge</span>
+              </a>
+              <a
+                href="https://gitlab.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-10 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center gap-2"
+              >
+                <FaGitlab className="text-base text-orange-600" />
+                <span className="text-sm font-medium text-stone-700">Soluciones</span>
+              </a>
+              <NextLink
+                href="/utilidades"
+                className="h-10 px-3 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors flex items-center gap-2"
+              >
+                <HiOutlineWrenchScrewdriver className="text-base text-stone-600" />
+                <span className="text-sm font-medium text-stone-700">Utilidades</span>
+              </NextLink>
+            </div>
           </div>
           
 
           <div className="flex items-center gap-3">
+            <div className="hidden lg:flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2.5 w-64">
+              <HiOutlineUser className="text-stone-400 text-lg flex-shrink-0" />
+              <input
+                type="text"
+                value={pendingUserId}
+                onChange={(e) => setPendingUserId(e.target.value)}
+                onBlur={applyUserIdChange}
+                className="flex-1 bg-transparent text-sm text-stone-700 placeholder:text-stone-400 outline-none min-w-0"
+                placeholder="usuario"
+              />
+            </div>
             <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 sm:px-4 py-2 sm:py-2.5 flex-1 sm:flex-none sm:w-64">
               <HiOutlineMagnifyingGlass className="text-stone-400 text-lg flex-shrink-0" />
               <input
@@ -298,7 +515,13 @@ export default function Home() {
                 >
                   <SubjectCard
                     subject={subject!}
-                    data={state.subjectData[subject!.id] || { links: [] }}
+                    data={{
+                      links: [
+                        ...getDefaultLinks(subject!.id),
+                        ...(communityLinks[subject!.id] ?? []),
+                      ],
+                    }}
+                    currentUserId={userId}
                     onHide={hideSubject}
                     onAddLink={addLink}
                     onDeleteLink={deleteLink}

@@ -17,6 +17,7 @@ import {
 interface SubjectCardProps {
   subject: SubjectDef;
   data: SubjectUserData;
+  currentUserId: string;
   onHide: (id: string) => void;
   onAddLink: (subjectId: string, title: string, url: string, description?: string) => void;
   onDeleteLink: (subjectId: string, linkId: string) => void;
@@ -40,6 +41,7 @@ function getColor(id: string) {
 export default function SubjectCard({
   subject,
   data,
+  currentUserId,
   onHide,
   onAddLink,
   onDeleteLink,
@@ -154,14 +156,21 @@ export default function SubjectCard({
                           {link.description}
                         </p>
                       )}
+                      <p className="text-[10px] text-stone-400 mt-0.5">
+                        {link.source === "default"
+                          ? "Por defecto"
+                          : `Comunidad · ${link.createdBy ?? "anonimo"}`}
+                      </p>
                     </div>
-                    <button
-                      onClick={() => onDeleteLink(subject.id, link.id)}
-                      className="h-8 w-8 rounded-lg flex items-center justify-center text-stone-400 hover:text-red-500 hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100 transition-all flex-shrink-0"
-                      title="Eliminar enlace"
-                    >
-                      <HiOutlineTrash className="text-sm" />
-                    </button>
+                    {link.source !== "default" && link.createdBy === currentUserId && (
+                      <button
+                        onClick={() => onDeleteLink(subject.id, link.id)}
+                        className="h-8 w-8 rounded-lg flex items-center justify-center text-stone-400 hover:text-red-500 hover:bg-red-50 sm:opacity-0 sm:group-hover:opacity-100 transition-all flex-shrink-0"
+                        title="Eliminar enlace"
+                      >
+                        <HiOutlineTrash className="text-sm" />
+                      </button>
+                    )}
                   </div>
                 ))
               )}
